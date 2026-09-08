@@ -22,33 +22,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         val appContainer = (application as SkirkApplication).appContainer
-
         setContent {
             val userSettings by appContainer.userSettingsRepository.observeSettings().collectAsState(initial = null)
             val isDarkTheme = when (userSettings?.themeMode) {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
-                ThemeMode.SYSTEM, null -> isSystemInDarkTheme()
-            }
+                ThemeMode.SYSTEM, null -> isSystemInDarkTheme() }
             val dynamicColor = userSettings?.dynamicColor ?: true
-
             CompositionLocalProvider(LocalAppContainer provides appContainer) {
                 SkirkTheme(
                     darkTheme = isDarkTheme,
-                    dynamicColor = dynamicColor
-                ) {
+                    dynamicColor = dynamicColor ) {
                     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                         val navController = rememberNavController()
                         SkirkNavGraph(
                             appContainer = appContainer,
                             navController = navController,
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+                            modifier = Modifier.padding(innerPadding) ) } } } } } }

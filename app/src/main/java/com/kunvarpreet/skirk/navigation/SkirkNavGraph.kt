@@ -43,6 +43,9 @@ fun SkirkNavGraph(
                 },
                 onNavigateToEditor = {
                     navController.navigate(Screen.DashboardEditor.route)
+                },
+                onLaunchStandBy = {
+                    appContainer.standByController.enterStandByManually()
                 }
             )
         }

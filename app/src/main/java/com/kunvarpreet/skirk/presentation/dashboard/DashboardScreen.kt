@@ -43,6 +43,7 @@ fun DashboardScreen(
     widgetRegistry: WidgetRegistry,
     onNavigateToSettings: () -> Unit,
     onNavigateToEditor: () -> Unit,
+    onLaunchStandBy: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -199,6 +200,15 @@ fun DashboardScreen(
                         ) {
                             Text("Settings")
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = onLaunchStandBy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Launch StandBy (Manual Mode)")
                     }
                 }
             }

@@ -15,30 +15,24 @@ import java.io.FileOutputStream
  */
 class JsonDashboardFileStorage(
     private val context: Context,
-    private val fileName: String = "dashboard_config.json"
-) {
+    private val fileName: String = "dashboard_config.json" ) {
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+        encodeDefaults = true }
 
     private val storageFile: File
         get() = File(context.filesDir, fileName)
-
     suspend fun loadDashboard(): Dashboard? = withContext(Dispatchers.IO) {
         val file = storageFile
         if (!file.exists() || file.length() == 0L) {
-            return@withContext null
-        }
+            return@withContext null }
         try {
             val content = file.readText()
             json.decodeFromString<Dashboard>(content)
         } catch (e: Exception) {
             e.printStackTrace()
-            null
-        }
-    }
+            null } }
 
     suspend fun saveDashboard(dashboard: Dashboard) = withContext(Dispatchers.IO) {
         try {
