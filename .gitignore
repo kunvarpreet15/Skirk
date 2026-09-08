@@ -19,6 +19,7 @@ app/release/
 *.pfx
 keystore.properties
 signing.properties
+
 .env
 .env.*
 !.env.example

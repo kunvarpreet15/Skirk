@@ -83,7 +83,6 @@ Dashboard
 ```
 
 ### Models Summary
-
 | Model | Responsibility |
 |---|---|
 | `Dashboard` | Root entity holding ordered panels and pointer to active panel index. |
