@@ -1,5 +1,6 @@
 package com.kunvarpreet.skirk.presentation.dashboard.layout
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -8,36 +9,48 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kunvarpreet.skirk.domain.model.WidgetDesign
 import com.kunvarpreet.skirk.domain.model.WidgetSlot
+import com.kunvarpreet.skirk.gesture.GestureConfig
+import com.kunvarpreet.skirk.gesture.slotVerticalSwipe
+import com.kunvarpreet.skirk.presentation.dashboard.animation.WidgetTransitionDirection
+import com.kunvarpreet.skirk.presentation.dashboard.animation.widgetSlotTransition
 import com.kunvarpreet.skirk.widget.core.WidgetRegistry
 
 /**
  * Composable rendering an individual WidgetSlot.
- * Displays the currently active widget in the slot's stack, along with
- * temporary developer controls to cycle widgets forward and backward.
+ *
+ * Features:
+ * - Natural vertical swipe gesture handling via [slotVerticalSwipe].
+ * - Directional vertical slide and fade animations via [AnimatedContent] and [widgetSlotTransition].
+ * - Accessibility semantic actions for screen readers.
+ * - Tap passthrough for interactive widget elements.
+ * - Clean StandBy slot framing without clutter.
  */
 @Composable
 fun WidgetSlotView(
@@ -45,14 +58,57 @@ fun WidgetSlotView(
     widgetRegistry: WidgetRegistry,
     onNextWidget: () -> Unit,
     onPrevWidget: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    gestureConfig: GestureConfig = GestureConfig.Default,
+    showDebugControls: Boolean = false
 ) {
     val activeWidget = slot.activeWidget
+    val canSwipe = slot.widgets.size > 1
+
+    var transitionDirection by remember { mutableStateOf(WidgetTransitionDirection.NONE) }
+
+    val handleSwipeUp: () -> Unit = {
+        if (canSwipe) {
+            transitionDirection = WidgetTransitionDirection.FORWARD
+            onNextWidget()
+        }
+    }
+
+    val handleSwipeDown: () -> Unit = {
+        if (canSwipe) {
+            transitionDirection = WidgetTransitionDirection.BACKWARD
+            onPrevWidget()
+        }
+    }
+
+    val activeDefinition = activeWidget?.let { widgetRegistry.getDefinition(it.widgetTypeId) }
+    val widgetDisplayName = activeDefinition?.displayName ?: activeWidget?.widgetTypeId ?: "Empty"
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(20.dp)),
+            .clip(RoundedCornerShape(20.dp))
+            .slotVerticalSwipe(
+                enabled = canSwipe,
+                config = gestureConfig,
+                onSwipeUp = handleSwipeUp,
+                onSwipeDown = handleSwipeDown
+            )
+            .semantics {
+                contentDescription = "Slot ${slot.slotIndex + 1}, showing $widgetDisplayName, item ${slot.activeWidgetIndex + 1} of ${slot.widgets.size.coerceAtLeast(1)}"
+                if (canSwipe) {
+                    customActions = listOf(
+                        CustomAccessibilityAction("Next Widget") {
+                            handleSwipeUp()
+                            true
+                        },
+                        CustomAccessibilityAction("Previous Widget") {
+                            handleSwipeDown()
+                            true
+                        }
+                    )
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         if (activeWidget == null) {
@@ -78,27 +134,35 @@ fun WidgetSlotView(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Slot #${slot.slotIndex + 1} (${slot.id})",
+                        text = "Slot #${slot.slotIndex + 1}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF475569)
                     )
                 }
             }
         } else {
-            // Active Widget Content
-            val definition = widgetRegistry.getDefinition(activeWidget.widgetTypeId)
-            val design = definition?.findDesign(activeWidget.selectedDesignId)
-                ?: WidgetDesign(id = activeWidget.selectedDesignId, displayName = activeWidget.selectedDesignId)
-            val renderer = widgetRegistry.getRenderer(activeWidget.widgetTypeId, activeWidget.selectedDesignId)
+            // Active Widget Content with Directional Animated Vertical Transition
+            AnimatedContent(
+                targetState = activeWidget,
+                transitionSpec = {
+                    widgetSlotTransition(transitionDirection)
+                },
+                label = "WidgetSlotContentAnimation"
+            ) { targetWidget ->
+                val definition = widgetRegistry.getDefinition(targetWidget.widgetTypeId)
+                val design = definition?.findDesign(targetWidget.selectedDesignId)
+                    ?: WidgetDesign(id = targetWidget.selectedDesignId, displayName = targetWidget.selectedDesignId)
+                val renderer = widgetRegistry.getRenderer(targetWidget.widgetTypeId, targetWidget.selectedDesignId)
 
-            renderer.Render(
-                instance = activeWidget,
-                design = design,
-                modifier = Modifier.fillMaxSize()
-            )
+                renderer.Render(
+                    instance = targetWidget,
+                    design = design,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
-            // Temporary developer controls for multi-widget stack cycling
-            if (slot.widgets.size > 1) {
+            // Optional developer controls for multi-widget stack cycling (disabled by default in StandBy)
+            if (showDebugControls && canSwipe) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -120,7 +184,7 @@ fun WidgetSlotView(
                         )
 
                         FilledTonalButton(
-                            onClick = onPrevWidget,
+                            onClick = handleSwipeDown,
                             modifier = Modifier.size(24.dp),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                             shape = RoundedCornerShape(6.dp),
@@ -133,7 +197,7 @@ fun WidgetSlotView(
                         }
 
                         FilledTonalButton(
-                            onClick = onNextWidget,
+                            onClick = handleSwipeUp,
                             modifier = Modifier.size(24.dp),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                             shape = RoundedCornerShape(6.dp),

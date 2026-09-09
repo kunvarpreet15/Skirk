@@ -62,22 +62,34 @@ class DashboardViewModel(
     fun onNextWidgetInSlot(slotIndex: Int) {
         val current = uiState.value.dashboard ?: return
         val activePanel = current.activePanel ?: return
-        val slot = activePanel.getSlot(slotIndex) ?: return
-        if (slot.widgets.size <= 1) return
-        val nextWidgetIndex = (slot.activeWidgetIndex + 1) % slot.widgets.size
-        viewModelScope.launch {
-            dashboardRepository.setActiveWidget(activePanel.id, slotIndex, nextWidgetIndex)
-        }
+        onNextWidgetInSlot(activePanel.id, slotIndex)
     }
 
     fun onPreviousWidgetInSlot(slotIndex: Int) {
         val current = uiState.value.dashboard ?: return
         val activePanel = current.activePanel ?: return
-        val slot = activePanel.getSlot(slotIndex) ?: return
+        onPreviousWidgetInSlot(activePanel.id, slotIndex)
+    }
+
+    fun onNextWidgetInSlot(panelId: String, slotIndex: Int) {
+        val current = uiState.value.dashboard ?: return
+        val panel = current.getPanel(panelId) ?: return
+        val slot = panel.getSlot(slotIndex) ?: return
+        if (slot.widgets.size <= 1) return
+        val nextWidgetIndex = (slot.activeWidgetIndex + 1) % slot.widgets.size
+        viewModelScope.launch {
+            dashboardRepository.setActiveWidget(panel.id, slotIndex, nextWidgetIndex)
+        }
+    }
+
+    fun onPreviousWidgetInSlot(panelId: String, slotIndex: Int) {
+        val current = uiState.value.dashboard ?: return
+        val panel = current.getPanel(panelId) ?: return
+        val slot = panel.getSlot(slotIndex) ?: return
         if (slot.widgets.size <= 1) return
         val prevWidgetIndex = if (slot.activeWidgetIndex - 1 < 0) slot.widgets.size - 1 else slot.activeWidgetIndex - 1
         viewModelScope.launch {
-            dashboardRepository.setActiveWidget(activePanel.id, slotIndex, prevWidgetIndex)
+            dashboardRepository.setActiveWidget(panel.id, slotIndex, prevWidgetIndex)
         }
     }
 

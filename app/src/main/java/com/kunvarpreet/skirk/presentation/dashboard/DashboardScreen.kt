@@ -80,7 +80,7 @@ fun DashboardScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Dashboard Engine (Phase 2)",
+                                text = "Dashboard Interaction (Phase 3)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -130,7 +130,7 @@ fun DashboardScreen(
                         onNextWidgetInSlot = { viewModel.onNextWidgetInSlot(it) },
                         onPreviousWidgetInSlot = { viewModel.onPreviousWidgetInSlot(it) },
                         onResetToDefault = { viewModel.onResetToDefault() },
-                        showPanelControls = true,
+                        showPanelControls = false,
                         modifier = Modifier.fillMaxSize()
                     )
                 }

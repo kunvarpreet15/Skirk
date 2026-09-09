@@ -182,23 +182,59 @@ To avoid a giant monolithic `when` statement and ensure independent maintainabil
 
 ---
 
-## 6. Planned Gesture Architecture & Conflict Resolution
+## 6. Gesture Navigation & Dashboard Interaction (Phase 3 Engine)
 
-Phase 0 establishes the gesture model specifications. The planned gesture hierarchy coordinates the following touch events:
+Phase 3 implements the interactive gesture handling and navigation architecture for the Skirk StandBy dashboard:
 
 ```text
-Touch Event
- ├── Horizontal Drag  ────────► Switch Dashboard Panel (Pager swipe)
- ├── Vertical Drag in Slot ───► Switch Active Stacked Widget (Slot swipe)
- ├── Tap  ────────────────────► Forward to Active Widget Content (Interactive Tap)
- └── Long Press  ─────────────► Enter Dashboard Customization / Editor Mode
+                    Gesture
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+        Horizontal            Vertical
+             │                   │
+             ↓                   ↓
+       Panel Manager        Slot Manager
+             │                   │
+             ↓                   ↓
+       Active Panel        Active Widget
 ```
 
-### Gesture Strategy & Conflict Resolution
-1. **Directional Locking**: Using threshold-based pointer input detection, directional dragging locks into horizontal (panel pager) or vertical (slot stack) movement before consumption.
-2. **Slot Interception**: Vertical gestures within a slot bounding box take precedence for that slot stack, preventing unintended horizontal panel changes.
-3. **Pass-through Tap**: Short tap gestures pass through to interactive widgets (e.g., media playback pause/play) when not dragged.
-4. **Long Press Lock**: A long press on any slot or background triggers haptic feedback and enters Dashboard Customization Mode, disabling widget-specific tap handlers during editing.
+### 1. Panel Pager & Horizontal Navigation
+- Implemented via Jetpack Compose's foundation `HorizontalPager` with `rememberPagerState`.
+- **Bidirectional State Synchronization**:
+  - Pager page changes update `Dashboard.activePanelIndex` via `onSelectPanel(index)` and are atomically saved to persistent storage.
+  - External updates to `dashboard.activePanelIndex` animate the pager to the target page via `pagerState.animateScrollToPage(index)`.
+- **Boundaries & Edge Cases**:
+  - Single panel dashboards disable scrolling automatically (`userScrollEnabled = false`).
+  - Boundary overscroll is handled smoothly by native physics without invalid indices or crashes.
+
+### 2. Widget Slot Vertical Navigation
+- Each `WidgetSlotView` is equipped with `slotVerticalSwipe` based on `Modifier.draggable(Orientation.Vertical)`:
+  - **Swipe UP**: Advances to the next widget in the slot stack cyclically.
+  - **Swipe DOWN**: Returns to the previous widget in the slot stack cyclically.
+- Slots with $\le 1$ widget safely disable vertical dragging.
+- State is persisted immediately via `DashboardRepository.setActiveWidget(panelId, slotIndex, widgetIndex)`.
+
+### 3. Directional Animated Transitions
+- Switching widgets inside a slot uses `AnimatedContent` configured via `WidgetTransitionSpec`:
+  - **Forward (Swipe UP)**: Outgoing widget slides out towards the top (`slideOutVertically { -height } + fadeOut()`), incoming widget slides in from the bottom (`slideInVertically { height } + fadeIn()`).
+  - **Backward (Swipe DOWN)**: Outgoing widget slides out towards the bottom (`slideOutVertically { height } + fadeOut()`), incoming widget slides in from the top (`slideInVertically { -height } + fadeIn()`).
+
+### 4. Gesture Conflict Resolution
+- **Horizontal Swipe**: Handled by `HorizontalPager` for switching panels.
+- **Vertical Swipe in Slot**: Handled by `slotVerticalSwipe` along `Orientation.Vertical` without capturing horizontal delta.
+- **Tap**: Passes cleanly through to child interactive widgets (buttons, media toggles, checkboxes).
+- **Long Press**: Reserved for dashboard customization mode without accidental activation.
+
+### 5. Centralized Gesture Thresholds (`GestureConfig`)
+- Displacement threshold: `40.dp`.
+- Fling velocity threshold: `500f` px/sec.
+- Directional dominance ratio: $1.25\times$ (i.e. $|dy| \ge |dx| \times 1.25$ for vertical; $|dx| \ge |dy| \times 1.25$ for horizontal).
+
+### 6. StandBy Page Indicator & Accessibility
+- **`StandByPageIndicator`**: Subtle animated pill indicator (`● ○ ○`) communicating active panel index without distracting from the StandBy display.
+- **Accessibility Semantics**: `CustomAccessibilityAction`s for "Next Panel", "Previous Panel", "Next Widget", and "Previous Widget" alongside dynamic content descriptions.
 
 ---
 

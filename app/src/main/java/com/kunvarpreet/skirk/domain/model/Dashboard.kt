@@ -23,6 +23,8 @@ data class Dashboard(
             null
         }
 
+    fun getPanel(panelId: String): Panel? = panels.find { it.id == panelId }
+
     fun withActivePanelIndex(index: Int): Dashboard {
         if (panels.isEmpty()) return copy(activePanelIndex = 0)
         val clamped = index.coerceIn(0, panels.lastIndex)

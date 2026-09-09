@@ -121,7 +121,7 @@ fun StandByScreen(
                     onNextWidgetInSlot = { dashboardViewModel.onNextWidgetInSlot(it) },
                     onPreviousWidgetInSlot = { dashboardViewModel.onPreviousWidgetInSlot(it) },
                     onResetToDefault = { dashboardViewModel.onResetToDefault() },
-                    showPanelControls = true,
+                    showPanelControls = false,
                     modifier = Modifier.fillMaxSize()
                 )
             }
