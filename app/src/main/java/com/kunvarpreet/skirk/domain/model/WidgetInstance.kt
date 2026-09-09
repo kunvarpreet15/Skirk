@@ -13,5 +13,6 @@ data class WidgetInstance(
     val id: String = UUID.randomUUID().toString(),
     val widgetTypeId: String,
     val selectedDesignId: String,
-    val config: WidgetConfig = WidgetConfig()
+    val config: WidgetConfig = WidgetConfig(),
+    val isEnabled: Boolean = true
 )

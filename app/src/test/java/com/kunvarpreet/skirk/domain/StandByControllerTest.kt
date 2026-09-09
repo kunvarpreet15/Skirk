@@ -7,7 +7,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -28,7 +27,7 @@ class StandByControllerTest {
         val fakeProvider = FakeChargingStateProvider(ChargingState.Disconnected)
         val controller = StandByController(
             chargingStateProvider = fakeProvider,
-            scope = this
+            scope = backgroundScope
         )
 
         assertEquals(StandByState.INACTIVE, controller.standByState.value)
@@ -56,8 +55,6 @@ class StandByControllerTest {
         // Activity signals finish
         controller.notifyStandByActivityFinished()
         assertEquals(StandByState.INACTIVE, controller.standByState.value)
-
-        controller.stop()
     }
 
     @Test
@@ -65,7 +62,7 @@ class StandByControllerTest {
         val fakeProvider = FakeChargingStateProvider(ChargingState.Disconnected)
         val controller = StandByController(
             chargingStateProvider = fakeProvider,
-            scope = this
+            scope = backgroundScope
         )
 
         assertEquals(StandByState.INACTIVE, controller.standByState.value)
@@ -83,7 +80,5 @@ class StandByControllerTest {
 
         controller.notifyStandByActivityFinished()
         assertEquals(StandByState.INACTIVE, controller.standByState.value)
-
-        controller.stop()
     }
 }

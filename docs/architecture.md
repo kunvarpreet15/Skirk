@@ -67,36 +67,81 @@ This document defines the foundational architecture established in Phase 0 to en
 
 ---
 
-## 3. Core Domain Hierarchy
+## 3. Core Domain Hierarchy (Phase 2 Engine)
 
 The dashboard domain is structured hierarchically:
 
 ```text
 Dashboard
- └── List<Panel> (Horizontally swipeable screens)
-      ├── PanelLayout (Defines slot geometry and count)
-      └── List<WidgetSlot> (Slot index 0..N)
-           └── List<WidgetInstance> (Vertical stack of assigned widgets)
-                ├── widgetTypeId (Links to WidgetDefinition)
-                ├── selectedDesignId (Identifies visual theme/variant)
-                └── config (Instance-specific key-value settings)
+    │
+    ├── Panel (Ordered list of horizontally navigable screens)
+    │     │
+    │     ├── Layout (PanelLayout defining slot geometry and capacity)
+    │     │
+    │     ├── Slot 1 (WidgetSlot with activeWidgetIndex and stack)
+    │     │     ├── WidgetInstance (widgetTypeId, selectedDesignId, config, isEnabled)
+    │     │     ├── WidgetInstance
+    │     │     └── WidgetInstance
+    │     │
+    │     └── Slot 2 (WidgetSlot)
+    │           ├── WidgetInstance
+    │           └── WidgetInstance
+    │
+    └── Panel
+          ├── Layout (e.g., Grid4, Single, TwoSplitVertical)
+          └── Slot 1..N
 ```
 
-### Models Summary
-| Model | Responsibility |
-|---|---|
-| `Dashboard` | Root entity holding ordered panels and pointer to active panel index. |
-| `Panel` | A single horizontally swipeable screen containing a name, layout configuration, and slots. |
-| `PanelLayout` | Sealed hierarchy (`Single`, `TwoSplitHorizontal`, `TwoSplitVertical`, `Grid4`, `Grid6`, `Custom`) declaring slot capacity. |
-| `WidgetSlot` | A slot position holding an ordered stack of widgets and active widget index. |
-| `WidgetInstance` | A configured widget assigned to a slot, preserving its type, selected design, and custom parameters. |
-| `WidgetDefinition` | Static metadata describing capabilities, category, supported layouts, and available visual designs. |
-| `WidgetDesign` | Declares a visual theme/variation (e.g. Minimal, Large, Retro, Modern). |
-| `WidgetConfig` | Immutable key-value store for widget-specific configuration. |
+### Domain Models Specification
+| Model | Responsibility | Key Properties / Methods |
+|---|---|---|
+| `Dashboard` | Root container representing the user's dashboard configuration. | `id`, `schemaVersion`, `panels: List<Panel>`, `selectedPanelIndex: Int`, `addPanel()`, `removePanel()`, `reorderPanels()`, `selectPanel()` |
+| `Panel` | A single horizontally navigable screen in the dashboard. | `id`, `name`, `layout: PanelLayout`, `slots: List<WidgetSlot>`, `getSlotById()`, `updateSlotById()`, `addSlot()`, `removeSlot()` |
+| `PanelLayout` | Sealed class defining geometric arrangement and slot capacity. | `Single` (1 slot), `TwoSplitHorizontal` (2 slots), `TwoSplitVertical` (2 slots), `Grid4` (4 slots), `Grid6` (6 slots), `Custom` |
+| `WidgetSlot` | An individual slot on a panel containing a vertically swipeable stack of widgets. | `id`, `slotIndex`, `widgets: List<WidgetInstance>`, `activeWidgetIndex`, `activeWidget`, `addWidget()`, `removeWidget()`, `nextWidget()`, `previousWidget()` |
+| `WidgetInstance` | A configured widget assigned to a slot. | `id`, `widgetTypeId`, `selectedDesignId`, `config: WidgetConfig`, `isEnabled: Boolean` |
+| `WidgetDefinition` | Static metadata registered in the engine for widget discovery. | `id`, `displayName`, `description`, `category: WidgetCategory`, `supportedLayouts`, `availableDesigns`, `defaultDesignId` |
+| `WidgetDesign` | Declares a visual theme/variation (e.g. Minimal, Large, Retro, Modern). | `id`, `displayName`, `previewResId` |
+| `WidgetConfig` | Immutable key-value store for widget-specific configuration. | `parameters: Map<String, String>` |
 
 ---
 
-## 4. Widget Design System (Decoupled Provider Pattern)
+## 4. Presentation Engine: Compose Layout System
+
+Phase 2 introduces the modular Jetpack Compose rendering system:
+
+```text
+DashboardView (Orchestrates panels, indicators, and panel navigation)
+    │
+    └── PanelLayoutContainer (Arranges slots according to PanelLayout)
+          │
+          ├── Single               ──► Full-bleed single slot
+          ├── TwoSplitHorizontal   ──► Row: 2 equal-width slots
+          ├── TwoSplitVertical     ──► Column: 2 equal-height slots
+          ├── Grid4                ──► 2x2 Grid (4 equal slots)
+          └── Grid6                ──► 2x3 or 3x2 Grid (6 slots)
+                │
+                └── WidgetSlotView (Renders active widget from stack or empty placeholder)
+                      │
+                      ├── Stack Indicator: "[1/3]" badge with ▲ / ▼ cycling controls
+                      └── Widget Content: Decoupled WidgetContentRenderer via WidgetRegistry
+```
+
+### Components
+1. **`DashboardView`**:
+   - Reusable across `DashboardScreen` (portrait) and `StandByScreen` (landscape StandBy mode).
+   - Displays active panel, animated panel indicator dots, and panel switching buttons.
+2. **`PanelLayoutContainer`**:
+   - Inspects `panel.layout` and builds the appropriate Compose arrangement (`Row`, `Column`, `Grid`).
+   - Ensures consistent padding, spacing, and slot sizing regardless of orientation.
+3. **`WidgetSlotView`**:
+   - Handles multi-widget stack display, showing `activeWidgetIndex + 1 / widgets.size`.
+   - Exposes temporary `▲` / `▼` buttons to cycle through stacked widgets.
+   - Gracefully displays an empty slot call-to-action when `widgets.isEmpty()`.
+
+---
+
+## 5. Widget Engine & Decoupled Registry Pattern
 
 To avoid a giant monolithic `when` statement and ensure independent maintainability, Skirk decouples:
 1. **Widget Type**: The functional domain (e.g., `DIGITAL_CLOCK`).
@@ -119,17 +164,25 @@ To avoid a giant monolithic `when` statement and ensure independent maintainabil
        ┌──────┴───────────────┐
        ▼                      ▼
 ┌──────────────┐       ┌──────────────┐
-│MinimalRenderer       │ModernRenderer│
+│LargeRenderer │       │MinimalRenderer
 └──────────────┘       └──────────────┘
+       │                      │
+       └──────────┬───────────┘
+                  │ fallback if unassigned
+                  ▼
+       ┌────────────────────────┐
+       │PlaceholderWidgetRenderer
+       └────────────────────────┘
 ```
 
 - Each widget implements `WidgetProvider`.
 - `WidgetProvider` publishes a `WidgetDefinition` and provides a `WidgetContentRenderer` for any given `designId`.
 - The dashboard container calls `registry.getRenderer(widgetTypeId, designId).Render(...)`, eliminating compile-time dependencies between the dashboard and individual widget implementations.
+- If a widget or design is not registered, `WidgetRegistry` safely falls back to `PlaceholderWidgetRenderer`, rendering a styled card with category accent badges, widget title, and design name without crashing.
 
 ---
 
-## 5. Planned Gesture Architecture & Conflict Resolution
+## 6. Planned Gesture Architecture & Conflict Resolution
 
 Phase 0 establishes the gesture model specifications. The planned gesture hierarchy coordinates the following touch events:
 
@@ -149,23 +202,23 @@ Touch Event
 
 ---
 
-## 6. Persistence Strategy
+## 7. Persistence Strategy
 
 Skirk persists the entire dashboard hierarchy to disk so that custom configurations survive application updates and process termination:
 
 1. **Structured Dashboard Config**:
    - Stored in internal app storage via `JsonDashboardFileStorage`.
    - Utilizes `kotlinx.serialization.json.Json` with `AtomicFile` to guarantee atomicity and avoid corrupted writes during abrupt power cuts.
-   - Captures panel order, layouts, slots, stacked widget instances, selected design IDs, custom configurations, and active scroll indices.
+   - Captures `schemaVersion = 1`, panel order, layouts, slots, stacked widget instances, selected design IDs, custom configurations, and active scroll indices.
 2. **Global Preferences**:
    - Managed via `UserSettingsRepositoryImpl` using Jetpack `DataStore Preferences`.
    - Stores user preferences: theme mode (`DARK`, `LIGHT`, `SYSTEM`), dynamic color toggles, and screen sleep prevention flags.
 3. **First-Run Factory**:
-   - `DefaultDashboardFactory` provides an immediate, functional out-of-the-box configuration if no persisted state exists.
+   - `DefaultDashboardFactory` provides an immediate, functional out-of-the-box configuration with 3 panels ("Clock & Battery", "Media & Focus", "Glance Grid") if no persisted state exists.
 
 ---
 
-## 7. Navigation Architecture
+## 8. Navigation Architecture
 
 Navigation is built on Jetpack Compose Navigation (`androidx.navigation.compose`) with strongly-typed destinations (`Screen` sealed class):
 
@@ -179,7 +232,7 @@ Navigation is built on Jetpack Compose Navigation (`androidx.navigation.compose`
 
 ---
 
-## 8. Developer Guide: How to Add a New Widget
+## 9. Developer Guide: How to Add a New Widget
 
 Adding a new widget requires **zero modifications** to the core dashboard, layout engine, or persistence layers.
 
@@ -235,3 +288,32 @@ The new widget is now automatically:
 - Discoverable in the `WidgetPicker`.
 - Persisted and restored across application restarts.
 - Renderable across any panel layout and slot stack.
+
+---
+
+## 10. Developer Guide: How to Add a New Panel Layout
+
+Adding a new panel layout follows a standardized 3-step pattern:
+
+1. **Extend `PanelLayout` sealed class**:
+   ```kotlin
+   @Serializable
+   @SerialName("three_split_horizontal")
+   data object ThreeSplitHorizontal : PanelLayout(
+       id = "three_split_horizontal",
+       displayName = "Three Columns",
+       slotCount = 3
+   )
+   ```
+2. **Add Layout Arrangement in `PanelLayoutContainer.kt`**:
+   ```kotlin
+   is PanelLayout.ThreeSplitHorizontal -> {
+       Row(modifier = modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
+           slots.take(3).forEach { slot ->
+               WidgetSlotView(slot = slot, modifier = Modifier.weight(1f).fillMaxHeight(), ...)
+           }
+       }
+   }
+   ```
+3. **Register or Configure Panels**:
+   Any panel can now assign `PanelLayout.ThreeSplitHorizontal` and host up to 3 independent widget slots with automatic state persistence and stack cycling.

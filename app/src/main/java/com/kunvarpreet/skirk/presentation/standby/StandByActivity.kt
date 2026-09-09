@@ -8,6 +8,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -16,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.kunvarpreet.skirk.SkirkApplication
 import com.kunvarpreet.skirk.domain.standby.StandByCommand
+import com.kunvarpreet.skirk.presentation.dashboard.DashboardViewModel
 import com.kunvarpreet.skirk.ui.theme.SkirkTheme
 import kotlinx.coroutines.launch
 
@@ -26,12 +28,24 @@ import kotlinx.coroutines.launch
  * - Full-screen immersive system bar hiding.
  * - Landscape orientation lock with sensor support.
  * - Display wake lock via FLAG_KEEP_SCREEN_ON.
+ * - Integration with live model-driven DashboardView.
  * - Lifecycle synchronization with StandByController.
  */
 class StandByActivity : ComponentActivity() {
 
+    private val appContainer by lazy {
+        (application as SkirkApplication).appContainer
+    }
+
     private val standByController by lazy {
-        (application as SkirkApplication).appContainer.standByController
+        appContainer.standByController
+    }
+
+    private val dashboardViewModel: DashboardViewModel by viewModels {
+        DashboardViewModel.provideFactory(
+            dashboardRepository = appContainer.dashboardRepository,
+            userSettingsRepository = appContainer.userSettingsRepository
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,7 +78,9 @@ class StandByActivity : ComponentActivity() {
         setContent {
             SkirkTheme(darkTheme = true) {
                 StandByScreen(
+                    dashboardViewModel = dashboardViewModel,
                     standByController = standByController,
+                    widgetRegistry = appContainer.widgetRegistry,
                     onExitStandBy = {
                         standByController.exitStandBy()
                         finish()

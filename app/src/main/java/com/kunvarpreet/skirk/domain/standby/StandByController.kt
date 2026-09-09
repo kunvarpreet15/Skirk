@@ -34,7 +34,7 @@ class StandByController(
     private val _chargingState = MutableStateFlow(chargingStateProvider.getCurrentChargingState())
     val chargingState: StateFlow<ChargingState> = _chargingState.asStateFlow()
 
-    private val _commands = MutableSharedFlow<StandByCommand>(extraBufferCapacity = 10)
+    private val _commands = MutableSharedFlow<StandByCommand>(replay = 1, extraBufferCapacity = 10)
     val commands: SharedFlow<StandByCommand> = _commands.asSharedFlow()
 
     private var isManualSession: Boolean = false

@@ -15,27 +15,33 @@ class DefaultDashboardFactoryTest {
 
         assertNotNull(dashboard)
         assertEquals("Primary StandBy", dashboard.name)
-        assertEquals(2, dashboard.panels.size)
+        assertEquals(3, dashboard.panels.size)
 
         // Panel 1: TwoSplitHorizontal
-        val mainPanel = dashboard.panels[0]
-        assertEquals("StandBy Glance", mainPanel.name)
-        assertEquals(PanelLayout.TwoSplitHorizontal, mainPanel.layout)
-        assertEquals(2, mainPanel.slots.size)
+        val panel1 = dashboard.panels[0]
+        assertEquals("Clock & Battery", panel1.name)
+        assertEquals(PanelLayout.TwoSplitHorizontal, panel1.layout)
+        assertEquals(2, panel1.slots.size)
 
         // Verify slot stacks
-        val slot0 = mainPanel.slots[0]
+        val slot0 = panel1.slots[0]
         assertTrue("Slot 0 should contain multiple widgets", slot0.widgets.size >= 2)
         assertNotNull(slot0.activeWidget)
 
-        val slot1 = mainPanel.slots[1]
+        val slot1 = panel1.slots[1]
         assertTrue("Slot 1 should contain multiple widgets", slot1.widgets.size >= 2)
         assertNotNull(slot1.activeWidget)
 
         // Panel 2: Single layout
-        val focusPanel = dashboard.panels[1]
-        assertEquals("Focus & Media", focusPanel.name)
-        assertEquals(PanelLayout.Single, focusPanel.layout)
-        assertEquals(1, focusPanel.slots.size)
+        val panel2 = dashboard.panels[1]
+        assertEquals("Media & Focus", panel2.name)
+        assertEquals(PanelLayout.Single, panel2.layout)
+        assertEquals(1, panel2.slots.size)
+
+        // Panel 3: Grid4 layout
+        val panel3 = dashboard.panels[2]
+        assertEquals("Glance Grid", panel3.name)
+        assertEquals(PanelLayout.Grid4, panel3.layout)
+        assertEquals(4, panel3.slots.size)
     }
 }

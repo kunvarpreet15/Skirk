@@ -2,6 +2,9 @@ package com.kunvarpreet.skirk.data.repository
 
 import com.kunvarpreet.skirk.data.local.storage.JsonDashboardFileStorage
 import com.kunvarpreet.skirk.domain.model.Dashboard
+import com.kunvarpreet.skirk.domain.model.Panel
+import com.kunvarpreet.skirk.domain.model.WidgetConfig
+import com.kunvarpreet.skirk.domain.model.WidgetInstance
 import com.kunvarpreet.skirk.domain.repository.DashboardRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +68,97 @@ class DashboardRepositoryImpl(
                     slot.withActiveWidgetIndex(widgetIndex)
                 }
             }
+            _dashboardFlow.value = updated
+            storage.saveDashboard(updated)
+        }
+    }
+
+    override suspend fun addPanel(panel: Panel) {
+        mutex.withLock {
+            val current = _dashboardFlow.value
+            val updated = current.addPanel(panel)
+            _dashboardFlow.value = updated
+            storage.saveDashboard(updated)
+        }
+    }
+
+    override suspend fun removePanel(panelId: String) {
+        mutex.withLock {
+            val current = _dashboardFlow.value
+            val updated = current.removePanel(panelId)
+            _dashboardFlow.value = updated
+            storage.saveDashboard(updated)
+        }
+    }
+
+    override suspend fun reorderPanels(panelIds: List<String>) {
+        mutex.withLock {
+            val current = _dashboardFlow.value
+            val updated = current.reorderPanels(panelIds)
+            _dashboardFlow.value = updated
+            storage.saveDashboard(updated)
+        }
+    }
+
+    override suspend fun addWidgetToSlot(panelId: String, slotId: String, widget: WidgetInstance) {
+        mutex.withLock {
+            val current = _dashboardFlow.value
+            val updated = current.updatePanel(panelId) { panel ->
+                panel.updateSlotById(slotId) { slot ->
+                    slot.addWidget(widget)
+                }
+            }
+            _dashboardFlow.value = updated
+            storage.saveDashboard(updated)
+        }
+    }
+
+    override suspend fun removeWidgetFromSlot(panelId: String, slotId: String, widgetId: String) {
+        mutex.withLock {
+            val current = _dashboardFlow.value
+            val updated = current.updatePanel(panelId) { panel ->
+                panel.updateSlotById(slotId) { slot ->
+                    slot.removeWidget(widgetId)
+                }
+            }
+            _dashboardFlow.value = updated
+            storage.saveDashboard(updated)
+        }
+    }
+
+    override suspend fun reorderWidgetsInSlot(
+        panelId: String,
+        slotId: String,
+        widgetIds: List<String>
+    ) {
+        mutex.withLock {
+            val current = _dashboardFlow.value
+            val updated = current.updatePanel(panelId) { panel ->
+                panel.updateSlotById(slotId) { slot ->
+                    slot.reorderWidgets(widgetIds)
+                }
+            }
+            _dashboardFlow.value = updated
+            storage.saveDashboard(updated)
+        }
+    }
+
+    override suspend fun updateWidgetConfig(instanceId: String, config: WidgetConfig) {
+        mutex.withLock {
+            val current = _dashboardFlow.value
+            val updated = current.copy(
+                panels = current.panels.map { panel ->
+                    panel.copy(
+                        slots = panel.slots.map { slot ->
+                            slot.copy(
+                                widgets = slot.widgets.map { widget ->
+                                    if (widget.id == instanceId) widget.copy(config = config) else widget
+                                }
+                            )
+                        }
+                    )
+                }
+            )
             _dashboardFlow.value = updated
             storage.saveDashboard(updated)
         }
