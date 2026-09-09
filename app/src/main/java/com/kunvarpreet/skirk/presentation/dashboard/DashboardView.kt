@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun DashboardView(
+    modifier: Modifier = Modifier,
     dashboard: Dashboard?,
     widgetRegistry: WidgetRegistry,
     onNextPanel: () -> Unit,
@@ -61,8 +62,7 @@ fun DashboardView(
     onPreviousWidgetInSlot: (slotIndex: Int) -> Unit,
     onResetToDefault: () -> Unit,
     showDebugControls: Boolean = false,
-    showPanelControls: Boolean = showDebugControls,
-    modifier: Modifier = Modifier
+    showPanelControls: Boolean = showDebugControls
 ) {
     if (dashboard == null || dashboard.panels.isEmpty()) {
         Box(
