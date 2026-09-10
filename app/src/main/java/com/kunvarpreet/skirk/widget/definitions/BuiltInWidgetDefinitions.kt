@@ -8,10 +8,15 @@ import com.kunvarpreet.skirk.widget.core.WidgetProvider
 import com.kunvarpreet.skirk.widget.core.WidgetRegistry
 import com.kunvarpreet.skirk.widget.model.WidgetTypeIds
 
+import com.kunvarpreet.skirk.widget.analogclock.AnalogClockProvider
+import com.kunvarpreet.skirk.widget.battery.BatteryInfoProvider
+import com.kunvarpreet.skirk.widget.battery.BatteryWidgetProvider
+import com.kunvarpreet.skirk.widget.digitalclock.DigitalClockProvider
+
 /**
  * Declares the definitions and design variations for built-in widgets.
- * In Phase 0, each provider delegates rendering to the placeholder renderer,
- * preparing the registry for real Phase 1+ implementations.
+ * Digital Clock, Analog Clock, and Battery use real production implementations,
+ * while other widgets delegate to placeholder renderers until subsequent phases.
  */
 object BuiltInWidgetDefinitions {
 
@@ -24,36 +29,9 @@ object BuiltInWidgetDefinitions {
         }
     }
 
-    val digitalClock = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.DIGITAL_CLOCK,
-            displayName = "Digital Clock",
-            description = "Displays the current time digitally with customizable styles",
-            category = WidgetCategory.TIME,
-            availableDesigns = listOf(
-                WidgetDesign(id = "minimal", displayName = "Minimal"),
-                WidgetDesign(id = "large", displayName = "Large Bold"),
-                WidgetDesign(id = "retro", displayName = "Retro Flip"),
-                WidgetDesign(id = "modern", displayName = "Modern Neon")
-            ),
-            defaultDesignId = "large"
-        )
-    )
+    val digitalClock: WidgetProvider = DigitalClockProvider()
 
-    val analogClock = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.ANALOG_CLOCK,
-            displayName = "Analog Clock",
-            description = "Classic dial clock with hour, minute, and second hands",
-            category = WidgetCategory.TIME,
-            availableDesigns = listOf(
-                WidgetDesign(id = "classic", displayName = "Classic"),
-                WidgetDesign(id = "bauhaus", displayName = "Bauhaus"),
-                WidgetDesign(id = "chronograph", displayName = "Chronograph")
-            ),
-            defaultDesignId = "classic"
-        )
-    )
+    val analogClock: WidgetProvider = AnalogClockProvider()
 
     val mediaPlayer = createPlaceholderProvider(
         WidgetDefinition(
@@ -69,19 +47,7 @@ object BuiltInWidgetDefinitions {
         )
     )
 
-    val battery = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.BATTERY,
-            displayName = "Battery Info",
-            description = "Charging status, percentage, and estimated time to full",
-            category = WidgetCategory.SYSTEM,
-            availableDesigns = listOf(
-                WidgetDesign(id = "ring", displayName = "Circular Ring"),
-                WidgetDesign(id = "bar", displayName = "Horizontal Bar")
-            ),
-            defaultDesignId = "ring"
-        )
-    )
+    val battery: WidgetProvider = BatteryWidgetProvider()
 
     val calendar = createPlaceholderProvider(
         WidgetDefinition(
@@ -238,4 +204,29 @@ object BuiltInWidgetDefinitions {
         systemDashboard,
         quickShortcuts
     )
+
+    fun createBuiltInProviders(batteryInfoProvider: BatteryInfoProvider? = null): List<WidgetProvider> {
+        val activeBattery = if (batteryInfoProvider != null) {
+            BatteryWidgetProvider(batteryInfoProvider)
+        } else {
+            battery
+        }
+
+        return listOf(
+            digitalClock,
+            analogClock,
+            mediaPlayer,
+            activeBattery,
+            calendar,
+            schedule,
+            countdown,
+            stopwatch,
+            notifications,
+            quotes,
+            photoSlideshow,
+            memePlayer,
+            systemDashboard,
+            quickShortcuts
+        )
+    }
 }

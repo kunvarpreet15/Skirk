@@ -353,3 +353,55 @@ Adding a new panel layout follows a standardized 3-step pattern:
    ```
 3. **Register or Configure Panels**:
    Any panel can now assign `PanelLayout.ThreeSplitHorizontal` and host up to 3 independent widget slots with automatic state persistence and stack cycling.
+
+---
+
+## 11. Core Time & Battery Widgets (Phase 4)
+
+Phase 4 introduces production implementations for the primary StandBy widgets (`DIGITAL_CLOCK`, `ANALOG_CLOCK`, and `BATTERY`), replacing placeholders with real glanceable smart-display visuals.
+
+```text
+Digital Clock Widget
+        │
+        ├── Configuration (is_24_hour, show_seconds, show_date)
+        │
+        ├── State (TimeSnapshot, rememberCurrentTime, lifecycle-aware)
+        │
+        └── Design
+              │
+        ┌─────┼─────┐
+        ↓     ↓     ↓
+     Minimal Large Modern
+```
+
+### 11.1 Time Infrastructure & Energy Efficiency
+- **Smart Minute Ticking**: For clock widgets where seconds display is toggled off, `rememberCurrentTime` avoids ticking every second. Instead, it computes the milliseconds until the top of the next minute (`60000L - (now % 60000L)`) and sleeps until the minute boundary, eliminating 59 unnecessary recompositions per minute while in StandBy.
+- **Broadcast Synchronization**: `TimeState` listens for system broadcasts (`ACTION_TIME_TICK`, `ACTION_TIMEZONE_CHANGED`, `ACTION_TIME_CHANGED`) to guarantee prompt resynchronization if device time or timezone changes.
+- **Compose Lifecycle Cleanup**: Coroutine flows automatically pause/cancel when the widget is scrolled off-screen or the panel is transitioned away.
+
+### 11.2 Production Widget Implementations
+
+#### 1. Digital Clock (`DIGITAL_CLOCK`)
+- **Configuration**: `is_24_hour` (system auto-detect fallback), `show_seconds`, `show_date`.
+- **Designs**:
+  - `LargeDigitalClock`: Ultra-large bold StandBy typography optimized for across-the-room nightstand viewing.
+  - `MinimalDigitalClock`: Clean, restrained typography with subtle date metadata.
+  - `ModernDigitalClock`: Structured glanceable card with pill-accented date and seconds status.
+  - `RetroDigitalClock`: Flip-clock aesthetic fallback.
+
+#### 2. Analog Clock (`ANALOG_CLOCK`)
+- **Configuration**: `show_seconds`, `show_hour_numbers`.
+- **Canvas Rendering**: Fully hardware-accelerated Compose `Canvas` drawing calculated using trigonometric hand angles ($360^\circ$ circle).
+- **Designs**:
+  - `ClassicAnalogClock`: 60 precision minute tick marks, tapered hour/minute hands, high-contrast amber second hand, and metallic central hub.
+  - `BauhausAnalogClock`: Bold minimalist baton markers, geometric hour/minute rectangular hands, and vivid cyan needle.
+  - `ChronographAnalogClock`: Technical instrument dial featuring inner track rings, secondary sub-dials, and sword hands.
+
+#### 3. Battery Widget (`BATTERY`)
+- **Configuration**: `show_temperature`, `show_health`, `show_power_source`.
+- **Event-Driven Architecture**: Powered by `AndroidBatteryInfoProvider` observing sticky `Intent.ACTION_BATTERY_CHANGED` without polling loops.
+- **Designs**:
+  - `RingBatteryDesign`: Circular stroke gauge with dynamic color states (emerald charging, amber low, cyan normal) and centered percentage.
+  - `BarBatteryDesign`: Horizontal battery cell with terminal nipple, fluid animated fill bar, and status badges.
+  - `MinimalBatteryDesign`: Compact glanceable capsule indicator with large percentage numerals.
+

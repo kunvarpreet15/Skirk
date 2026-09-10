@@ -14,6 +14,9 @@ import com.kunvarpreet.skirk.data.power.AndroidChargingStateProvider
 import com.kunvarpreet.skirk.domain.power.ChargingStateProvider
 import com.kunvarpreet.skirk.domain.standby.StandByController
 
+import com.kunvarpreet.skirk.widget.battery.BatteryInfoProvider
+import com.kunvarpreet.skirk.widget.battery.AndroidBatteryInfoProvider
+
 /**
  * Dependency Injection container interface providing application-wide singletons.
  */
@@ -23,6 +26,7 @@ interface AppContainer {
     val widgetRegistry: WidgetRegistry
     val chargingStateProvider: ChargingStateProvider
     val standByController: StandByController
+    val batteryInfoProvider: BatteryInfoProvider
 }
 
 /**
@@ -30,9 +34,13 @@ interface AppContainer {
  */
 class DefaultAppContainer(private val context: Context) : AppContainer {
 
+    override val batteryInfoProvider: BatteryInfoProvider by lazy {
+        AndroidBatteryInfoProvider(context = context.applicationContext)
+    }
+
     override val widgetRegistry: WidgetRegistry by lazy {
         WidgetRegistry().apply {
-            BuiltInWidgetDefinitions.allBuiltInProviders.forEach { register(it) }
+            BuiltInWidgetDefinitions.createBuiltInProviders(batteryInfoProvider).forEach { register(it) }
         }
     }
 

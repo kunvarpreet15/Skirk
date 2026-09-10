@@ -7,9 +7,7 @@ plugins {
 
 android {
     namespace = "com.kunvarpreet.skirk"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk { version = release(37) }
 
     defaultConfig {
         applicationId = "com.kunvarpreet.skirk"
@@ -17,24 +15,15 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            optimization {
-                enable = true
-            }
-        }
-    }
+    buildTypes { release { optimization { enable = true } } }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    buildFeatures {
-        compose = true
-    }
+    buildFeatures { compose = true }
 }
 
 dependencies {
