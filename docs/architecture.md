@@ -405,3 +405,66 @@ Digital Clock Widget
   - `BarBatteryDesign`: Horizontal battery cell with terminal nipple, fluid animated fill bar, and status badges.
   - `MinimalBatteryDesign`: Compact glanceable capsule indicator with large percentage numerals.
 
+---
+
+## 12. Media Player Architecture (Phase 5)
+
+Phase 5 introduces the production **Media Player Widget** (`MEDIA_PLAYER`), providing a remote dashboard controller that interfaces with any external Android application playing music, podcasts, or video (Spotify, YouTube Music, Pocket Casts, VLC, etc.) through Android's standardized media-session APIs.
+
+```text
+External Media App
+        │
+        ↓
+Android MediaSession
+        │
+        ↓
+Media Controller
+        │
+        ↓
+Media Repository
+        │
+        ↓
+Media Widget State
+        │
+        ↓
+Widget Renderer
+        │
+        ↓
+Skirk Dashboard
+```
+
+### 12.1 Media Session Controller Abstraction
+- **Platform Separation**: Skirk never interfaces directly with specific third-party applications. All operations are mediated through Android's `MediaSessionManager` and `MediaController`.
+- **Domain Abstraction**: `MediaSessionRepository` presents a high-level `Flow<MediaState>` alongside transport controls (`play()`, `pause()`, `skipToNext()`, `skipToPrevious()`, `seekTo(ms)`).
+- **Service Integration**: Android requires notification listener authorization to inspect media sessions of other applications. Skirk registers `SkirkNotificationListenerService` in `AndroidManifest.xml` with `BIND_NOTIFICATION_LISTENER_SERVICE`.
+
+### 12.2 Session Discovery & Deterministic Selection
+When multiple media applications are concurrently registered on the device, Skirk uses a deterministic scoring strategy (`SessionSelectionStrategy`):
+1. **Actively Playing**: Sessions in `PlaybackState.STATE_PLAYING` are assigned the highest priority.
+2. **Buffering / Scrubbing**: Sessions in `STATE_BUFFERING`, `STATE_FAST_FORWARDING`, or `STATE_REWINDING` are prioritized next.
+3. **Paused Recency**: Sessions in `STATE_PAUSED` are ranked according to their `lastPositionUpdateTime` timestamp.
+4. **Metadata Tie-breaker**: Candidates with valid track titles/artists are favored over empty sessions.
+
+### 12.3 Permission & Empty States
+The widget gracefully manages access states without crashing or failing silently:
+- `PERMISSION_REQUIRED`: Displays an informative prompt with a "Grant Access" button directly opening Android's Special App Access Notification Settings.
+- `NO_MEDIA`: Displays a clean glanceable "No Media Playing" card.
+- `ACTIVE`: Renders the full playback interface with real-time metadata and controls.
+
+### 12.4 Visual Designs
+1. **`Compact`**: Streamlined horizontal row with artwork or music symbol, track title, artist, play/pause, prev/next, and subtle progress bar.
+2. **`Album Art`**: Rich StandBy display centered around prominent album artwork, interactive seek slider with formatted timestamps (`01:42 ━━━━━ 03:20`), and large transport buttons.
+3. **`Minimal`**: Ultra-clean typographic presentation with bold song title, artist, thin progress line, and primary play/pause control.
+
+### 12.5 Gesture Interaction Rules
+To prevent conflicts between media controls and dashboard navigation:
+- Play/Pause, Next, Previous, and Seek Slider elements consume their touch events directly.
+- Seeking or scrubbing horizontal progress bars never causes `HorizontalPager` to switch panels.
+- Vertical swipes on non-control widget areas continue to cycle slot widgets.
+
+### 12.6 StandBy Optimization & Energy Efficiency
+- **Smart Progress Ticking**: A 1-second progress tick coroutine runs exclusively when `isPlaying == true`. When playback is paused or disconnected, the ticker is cancelled to eliminate CPU overhead.
+- **Artwork Scaling**: Album artwork bitmaps retrieved from metadata are downscaled to 512px max dimension to prevent memory pressure during extended StandBy sessions.
+- **Resource Cleanup**: Media controller callbacks and listener registrations are automatically unbound when flows are cancelled.
+
+

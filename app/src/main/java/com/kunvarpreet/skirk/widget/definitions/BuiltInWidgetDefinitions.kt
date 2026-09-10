@@ -8,14 +8,16 @@ import com.kunvarpreet.skirk.widget.core.WidgetProvider
 import com.kunvarpreet.skirk.widget.core.WidgetRegistry
 import com.kunvarpreet.skirk.widget.model.WidgetTypeIds
 
+import com.kunvarpreet.skirk.media.domain.MediaSessionRepository
 import com.kunvarpreet.skirk.widget.analogclock.AnalogClockProvider
 import com.kunvarpreet.skirk.widget.battery.BatteryInfoProvider
 import com.kunvarpreet.skirk.widget.battery.BatteryWidgetProvider
 import com.kunvarpreet.skirk.widget.digitalclock.DigitalClockProvider
+import com.kunvarpreet.skirk.widget.mediaplayer.MediaPlayerProvider
 
 /**
  * Declares the definitions and design variations for built-in widgets.
- * Digital Clock, Analog Clock, and Battery use real production implementations,
+ * Digital Clock, Analog Clock, Battery, and Media Player use real production implementations,
  * while other widgets delegate to placeholder renderers until subsequent phases.
  */
 object BuiltInWidgetDefinitions {
@@ -33,19 +35,7 @@ object BuiltInWidgetDefinitions {
 
     val analogClock: WidgetProvider = AnalogClockProvider()
 
-    val mediaPlayer = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.MEDIA_PLAYER,
-            displayName = "Media Player",
-            description = "Now playing metadata, album art, and playback controls",
-            category = WidgetCategory.MEDIA,
-            availableDesigns = listOf(
-                WidgetDesign(id = "compact", displayName = "Compact"),
-                WidgetDesign(id = "full_art", displayName = "Full Album Art")
-            ),
-            defaultDesignId = "compact"
-        )
-    )
+    val mediaPlayer: WidgetProvider = MediaPlayerProvider()
 
     val battery: WidgetProvider = BatteryWidgetProvider()
 
@@ -205,17 +195,25 @@ object BuiltInWidgetDefinitions {
         quickShortcuts
     )
 
-    fun createBuiltInProviders(batteryInfoProvider: BatteryInfoProvider? = null): List<WidgetProvider> {
+    fun createBuiltInProviders(
+        batteryInfoProvider: BatteryInfoProvider? = null,
+        mediaSessionRepository: MediaSessionRepository? = null
+    ): List<WidgetProvider> {
         val activeBattery = if (batteryInfoProvider != null) {
             BatteryWidgetProvider(batteryInfoProvider)
         } else {
             battery
         }
+        val activeMedia = if (mediaSessionRepository != null) {
+            MediaPlayerProvider(mediaSessionRepository)
+        } else {
+            mediaPlayer
+        }
 
         return listOf(
             digitalClock,
             analogClock,
-            mediaPlayer,
+            activeMedia,
             activeBattery,
             calendar,
             schedule,

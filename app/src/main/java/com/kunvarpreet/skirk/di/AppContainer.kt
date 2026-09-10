@@ -14,6 +14,8 @@ import com.kunvarpreet.skirk.data.power.AndroidChargingStateProvider
 import com.kunvarpreet.skirk.domain.power.ChargingStateProvider
 import com.kunvarpreet.skirk.domain.standby.StandByController
 
+import com.kunvarpreet.skirk.media.data.AndroidMediaSessionRepository
+import com.kunvarpreet.skirk.media.domain.MediaSessionRepository
 import com.kunvarpreet.skirk.widget.battery.BatteryInfoProvider
 import com.kunvarpreet.skirk.widget.battery.AndroidBatteryInfoProvider
 
@@ -27,6 +29,7 @@ interface AppContainer {
     val chargingStateProvider: ChargingStateProvider
     val standByController: StandByController
     val batteryInfoProvider: BatteryInfoProvider
+    val mediaSessionRepository: MediaSessionRepository
 }
 
 /**
@@ -38,9 +41,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         AndroidBatteryInfoProvider(context = context.applicationContext)
     }
 
+    override val mediaSessionRepository: MediaSessionRepository by lazy {
+        AndroidMediaSessionRepository(context = context.applicationContext)
+    }
+
     override val widgetRegistry: WidgetRegistry by lazy {
         WidgetRegistry().apply {
-            BuiltInWidgetDefinitions.createBuiltInProviders(batteryInfoProvider).forEach { register(it) }
+            BuiltInWidgetDefinitions.createBuiltInProviders(
+                batteryInfoProvider = batteryInfoProvider,
+                mediaSessionRepository = mediaSessionRepository
+            ).forEach { register(it) }
         }
     }
 
