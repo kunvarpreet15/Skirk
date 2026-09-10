@@ -77,9 +77,7 @@ fun WidgetSlotView(
     val handleSwipeDown: () -> Unit = {
         if (canSwipe) {
             transitionDirection = WidgetTransitionDirection.BACKWARD
-            onPrevWidget()
-        }
-    }
+            onPrevWidget() } }
 
     val activeDefinition = activeWidget?.let { widgetRegistry.getDefinition(it.widgetTypeId) }
     val widgetDisplayName = activeDefinition?.displayName ?: activeWidget?.widgetTypeId ?: "Empty"
