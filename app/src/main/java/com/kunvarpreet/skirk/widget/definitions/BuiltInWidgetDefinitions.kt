@@ -15,9 +15,13 @@ import com.kunvarpreet.skirk.widget.battery.BatteryWidgetProvider
 import com.kunvarpreet.skirk.widget.digitalclock.DigitalClockProvider
 import com.kunvarpreet.skirk.widget.mediaplayer.MediaPlayerProvider
 
+import com.kunvarpreet.skirk.calendar.domain.CalendarRepository
+import com.kunvarpreet.skirk.widget.calendar.CalendarWidgetProvider
+import com.kunvarpreet.skirk.widget.schedule.ScheduleWidgetProvider
+
 /**
  * Declares the definitions and design variations for built-in widgets.
- * Digital Clock, Analog Clock, Battery, and Media Player use real production implementations,
+ * Digital Clock, Analog Clock, Battery, Media Player, Calendar, and Schedule use real production implementations,
  * while other widgets delegate to placeholder renderers until subsequent phases.
  */
 object BuiltInWidgetDefinitions {
@@ -39,33 +43,9 @@ object BuiltInWidgetDefinitions {
 
     val battery: WidgetProvider = BatteryWidgetProvider()
 
-    val calendar = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.CALENDAR,
-            displayName = "Calendar",
-            description = "Month glance and upcoming schedule markers",
-            category = WidgetCategory.PRODUCTIVITY,
-            availableDesigns = listOf(
-                WidgetDesign(id = "month_view", displayName = "Month Grid"),
-                WidgetDesign(id = "day_large", displayName = "Day of Month")
-            ),
-            defaultDesignId = "month_view"
-        )
-    )
+    val calendar: WidgetProvider = CalendarWidgetProvider()
 
-    val schedule = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.SCHEDULE,
-            displayName = "Schedule & Agenda",
-            description = "Upcoming calendar events and timeline",
-            category = WidgetCategory.PRODUCTIVITY,
-            availableDesigns = listOf(
-                WidgetDesign(id = "timeline", displayName = "Timeline"),
-                WidgetDesign(id = "agenda_list", displayName = "Agenda List")
-            ),
-            defaultDesignId = "timeline"
-        )
-    )
+    val schedule: WidgetProvider = ScheduleWidgetProvider()
 
     val countdown = createPlaceholderProvider(
         WidgetDefinition(
@@ -197,7 +177,8 @@ object BuiltInWidgetDefinitions {
 
     fun createBuiltInProviders(
         batteryInfoProvider: BatteryInfoProvider? = null,
-        mediaSessionRepository: MediaSessionRepository? = null
+        mediaSessionRepository: MediaSessionRepository? = null,
+        calendarRepository: CalendarRepository? = null
     ): List<WidgetProvider> {
         val activeBattery = if (batteryInfoProvider != null) {
             BatteryWidgetProvider(batteryInfoProvider)
@@ -209,14 +190,24 @@ object BuiltInWidgetDefinitions {
         } else {
             mediaPlayer
         }
+        val activeCalendar = if (calendarRepository != null) {
+            CalendarWidgetProvider(calendarRepository)
+        } else {
+            calendar
+        }
+        val activeSchedule = if (calendarRepository != null) {
+            ScheduleWidgetProvider(calendarRepository)
+        } else {
+            schedule
+        }
 
         return listOf(
             digitalClock,
             analogClock,
             activeMedia,
             activeBattery,
-            calendar,
-            schedule,
+            activeCalendar,
+            activeSchedule,
             countdown,
             stopwatch,
             notifications,

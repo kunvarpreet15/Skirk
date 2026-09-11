@@ -467,4 +467,69 @@ To prevent conflicts between media controls and dashboard navigation:
 - **Artwork Scaling**: Album artwork bitmaps retrieved from metadata are downscaled to 512px max dimension to prevent memory pressure during extended StandBy sessions.
 - **Resource Cleanup**: Media controller callbacks and listener registrations are automatically unbound when flows are cancelled.
 
+---
+
+## 13. Calendar & Schedule Architecture (Phase 6)
+
+Phase 6 introduces the production **Calendar Widget** (`CALENDAR`) and **Schedule Widget** (`SCHEDULE`), providing monthly calendar glances and chronological upcoming agenda timelines in StandBy mode.
+
+```text
+Android Calendar Provider
+          │
+          ↓
+ Calendar Repository
+          │
+          ↓
+ Calendar Domain Models
+          │
+     ┌────┴─────┐
+     ↓          ↓
+ Calendar    Schedule
+  Widget      Widget
+     │          │
+     └────┬─────┘
+          ↓
+    Skirk Dashboard
+```
+
+### 13.1 Calendar Provider Integration & Recurring Events
+- **`CalendarContract.Instances` Querying**: Rather than querying raw `Events` and implementing a complex custom recurrence engine, Skirk queries `CalendarContract.Instances.CONTENT_URI` parameterized by start and end epoch milliseconds via `ContentUris.appendId`. Android's built-in provider engine automatically expands all recurrence rules (daily, weekly, monthly, RRULE exceptions) into actual timestamped event occurrences within the queried range.
+- **Selective Window Querying**:
+  - Monthly Calendar: Bounds are constrained to the visible 35/42 month grid cells (first leading day of previous month to last trailing day of next month).
+  - Schedule: Bounds are constrained from start of today (00:00:00) through upcoming 14 days.
+
+### 13.2 Calendar Repository & Domain Models
+- **`CalendarRepository` Contract**: Abstracted behind `CalendarRepository` returning typed domain models (`MonthCalendarData`, `ScheduleData`, `CalendarEvent`, `CalendarItem`) rather than raw Android `Cursor` objects.
+- **Event Ordering**: Events implement `Comparable<CalendarEvent>`:
+  1. All-day events sort first on any given day.
+  2. Chronological start time (`startEpochMillis ASC`).
+  3. End time (`endEpochMillis ASC`).
+  4. Title tie-breaker.
+- **Extensible Calendar Filtering**: Models expose `calendarId`, enabling future user filtering by calendar accounts (Personal, Work, College) without repository refactoring.
+
+### 13.3 Permission Handling
+- Skirk declares `<uses-permission android:name="android.permission.READ_CALENDAR" />` in `AndroidManifest.xml`.
+- Runtime checks determine `CalendarAccessState`:
+  - `DENIED`: Renders `CalendarEmptyView` with an explicit "Grant Access" action navigating to Android application settings.
+  - `NO_CALENDARS`: Displays empty state when no calendar accounts are provisioned on the device.
+  - `GRANTED`: Renders full calendar/schedule widgets.
+- Prevents application startup permission prompts, ensuring access is requested only in context.
+
+### 13.4 Calendar Widget Designs
+1. **`Classic` (`month_view`)**: Traditional 7-column month grid, month header, weekday abbreviation row, circular today highlight, and event indicator dots.
+2. **`Minimal`**: Ultra-compact typography-focused monthly glance with high-contrast today badge and subtle event dots.
+3. **`Agenda Calendar` (`agenda_calendar`)**: Split view combining a compact monthly grid on the left with an upcoming day agenda list on the right.
+
+### 13.5 Schedule Widget Designs
+1. **`Timeline` (`timeline`)**: Chronological vertical timeline with connecting rail, event color nodes, time badges, title, and location.
+2. **`Compact Agenda` (`agenda_list`)**: Dense grouped list organized under relative date headers ("TODAY", "TOMORROW", "WEDNESDAY, SEP 16").
+3. **`Large Event` (`large_event`)**: Hero card spotlighting the immediate next upcoming event (large title, time, location, calendar tag) followed by compact secondary items.
+
+### 13.6 Lifecycle, Midnight Transitions & StandBy Refresh Strategy
+- **Event-Driven & Reactive**: Subscribes to `CalendarContract.Events.CONTENT_URI` using Android's `ContentObserver`. Provider queries only execute when external calendar changes occur.
+- **Date & Timezone Transitions**: Subscribes to system broadcasts (`ACTION_DATE_CHANGED`, `ACTION_TIMEZONE_CHANGED`, `ACTION_TIME_CHANGED`), ensuring midnight rollovers update "today" and schedule partitions automatically.
+- **Zero Continuous Polling**: Never queries the database on recurring loop timers. Provider I/O is dispatched off the UI thread via Kotlin coroutines (`Dispatchers.IO`).
+- **Gesture Isolation**: Calendar date selections and schedule item taps consume pointer interactions, preventing accidental panel swipe or vertical slot cycling.
+
+
 
