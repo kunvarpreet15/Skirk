@@ -18,6 +18,10 @@ import com.kunvarpreet.skirk.calendar.data.AndroidCalendarRepository
 import com.kunvarpreet.skirk.calendar.domain.CalendarRepository
 import com.kunvarpreet.skirk.media.data.AndroidMediaSessionRepository
 import com.kunvarpreet.skirk.media.domain.MediaSessionRepository
+import com.kunvarpreet.skirk.notification.data.AndroidNotificationRepository
+import com.kunvarpreet.skirk.notification.domain.NotificationRepository
+import com.kunvarpreet.skirk.system.data.AndroidSystemDashboardRepository
+import com.kunvarpreet.skirk.system.domain.SystemDashboardRepository
 import com.kunvarpreet.skirk.widget.battery.BatteryInfoProvider
 import com.kunvarpreet.skirk.widget.battery.AndroidBatteryInfoProvider
 
@@ -33,6 +37,8 @@ interface AppContainer {
     val batteryInfoProvider: BatteryInfoProvider
     val mediaSessionRepository: MediaSessionRepository
     val calendarRepository: CalendarRepository
+    val notificationRepository: NotificationRepository
+    val systemDashboardRepository: SystemDashboardRepository
 }
 
 /**
@@ -52,15 +58,29 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         AndroidCalendarRepository(context = context.applicationContext)
     }
 
+    override val notificationRepository: NotificationRepository by lazy {
+        AndroidNotificationRepository(context = context.applicationContext)
+    }
+
+    override val systemDashboardRepository: SystemDashboardRepository by lazy {
+        AndroidSystemDashboardRepository(
+            context = context.applicationContext,
+            batteryInfoProvider = batteryInfoProvider
+        )
+    }
+
     override val widgetRegistry: WidgetRegistry by lazy {
         WidgetRegistry().apply {
             BuiltInWidgetDefinitions.createBuiltInProviders(
                 batteryInfoProvider = batteryInfoProvider,
                 mediaSessionRepository = mediaSessionRepository,
-                calendarRepository = calendarRepository
+                calendarRepository = calendarRepository,
+                notificationRepository = notificationRepository,
+                systemDashboardRepository = systemDashboardRepository
             ).forEach { register(it) }
         }
     }
+
 
     private val jsonStorage: JsonDashboardFileStorage by lazy {
         JsonDashboardFileStorage(context.applicationContext)

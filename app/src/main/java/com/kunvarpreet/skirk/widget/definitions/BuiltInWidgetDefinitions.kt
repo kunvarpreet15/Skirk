@@ -19,9 +19,15 @@ import com.kunvarpreet.skirk.calendar.domain.CalendarRepository
 import com.kunvarpreet.skirk.widget.calendar.CalendarWidgetProvider
 import com.kunvarpreet.skirk.widget.schedule.ScheduleWidgetProvider
 
+import com.kunvarpreet.skirk.notification.domain.NotificationRepository
+import com.kunvarpreet.skirk.widget.notification.NotificationWidgetProvider
+import com.kunvarpreet.skirk.system.domain.SystemDashboardRepository
+import com.kunvarpreet.skirk.widget.system.SystemDashboardWidgetProvider
+
 /**
  * Declares the definitions and design variations for built-in widgets.
- * Digital Clock, Analog Clock, Battery, Media Player, Calendar, and Schedule use real production implementations,
+ * Digital Clock, Analog Clock, Battery, Media Player, Calendar, Schedule,
+ * Notifications, and System Dashboard use real production implementations,
  * while other widgets delegate to placeholder renderers until subsequent phases.
  */
 object BuiltInWidgetDefinitions {
@@ -46,6 +52,10 @@ object BuiltInWidgetDefinitions {
     val calendar: WidgetProvider = CalendarWidgetProvider()
 
     val schedule: WidgetProvider = ScheduleWidgetProvider()
+
+    val notifications: WidgetProvider = NotificationWidgetProvider()
+
+    val systemDashboard: WidgetProvider = SystemDashboardWidgetProvider()
 
     val countdown = createPlaceholderProvider(
         WidgetDefinition(
@@ -72,20 +82,6 @@ object BuiltInWidgetDefinitions {
                 WidgetDesign(id = "analog_needle", displayName = "Dial Needle")
             ),
             defaultDesignId = "digital_split"
-        )
-    )
-
-    val notifications = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.NOTIFICATIONS,
-            displayName = "Notification Glance",
-            description = "Recent notifications and unread badge counts",
-            category = WidgetCategory.SYSTEM,
-            availableDesigns = listOf(
-                WidgetDesign(id = "badges", displayName = "App Badges"),
-                WidgetDesign(id = "latest_card", displayName = "Latest Message")
-            ),
-            defaultDesignId = "badges"
         )
     )
 
@@ -130,20 +126,6 @@ object BuiltInWidgetDefinitions {
         )
     )
 
-    val systemDashboard = createPlaceholderProvider(
-        WidgetDefinition(
-            id = WidgetTypeIds.SYSTEM_DASHBOARD,
-            displayName = "System Dashboard",
-            description = "RAM, CPU, storage, and network statistics",
-            category = WidgetCategory.SYSTEM,
-            availableDesigns = listOf(
-                WidgetDesign(id = "gauges", displayName = "Gauges"),
-                WidgetDesign(id = "matrix", displayName = "Metric Matrix")
-            ),
-            defaultDesignId = "gauges"
-        )
-    )
-
     val quickShortcuts = createPlaceholderProvider(
         WidgetDefinition(
             id = WidgetTypeIds.QUICK_SHORTCUTS,
@@ -165,20 +147,22 @@ object BuiltInWidgetDefinitions {
         battery,
         calendar,
         schedule,
+        notifications,
+        systemDashboard,
         countdown,
         stopwatch,
-        notifications,
         quotes,
         photoSlideshow,
         memePlayer,
-        systemDashboard,
         quickShortcuts
     )
 
     fun createBuiltInProviders(
         batteryInfoProvider: BatteryInfoProvider? = null,
         mediaSessionRepository: MediaSessionRepository? = null,
-        calendarRepository: CalendarRepository? = null
+        calendarRepository: CalendarRepository? = null,
+        notificationRepository: NotificationRepository? = null,
+        systemDashboardRepository: SystemDashboardRepository? = null
     ): List<WidgetProvider> {
         val activeBattery = if (batteryInfoProvider != null) {
             BatteryWidgetProvider(batteryInfoProvider)
@@ -200,6 +184,16 @@ object BuiltInWidgetDefinitions {
         } else {
             schedule
         }
+        val activeNotifications = if (notificationRepository != null) {
+            NotificationWidgetProvider(notificationRepository)
+        } else {
+            notifications
+        }
+        val activeSystemDashboard = if (systemDashboardRepository != null) {
+            SystemDashboardWidgetProvider(systemDashboardRepository)
+        } else {
+            systemDashboard
+        }
 
         return listOf(
             digitalClock,
@@ -208,14 +202,15 @@ object BuiltInWidgetDefinitions {
             activeBattery,
             activeCalendar,
             activeSchedule,
+            activeNotifications,
+            activeSystemDashboard,
             countdown,
             stopwatch,
-            notifications,
             quotes,
             photoSlideshow,
             memePlayer,
-            systemDashboard,
             quickShortcuts
         )
     }
 }
+

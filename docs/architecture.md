@@ -531,5 +531,115 @@ Android Calendar Provider
 - **Zero Continuous Polling**: Never queries the database on recurring loop timers. Provider I/O is dispatched off the UI thread via Kotlin coroutines (`Dispatchers.IO`).
 - **Gesture Isolation**: Calendar date selections and schedule item taps consume pointer interactions, preventing accidental panel swipe or vertical slot cycling.
 
+---
 
+## 14. Notifications & System Dashboard Architecture (Phase 7)
 
+Phase 7 introduces two system-level widgets:
+1. **Notification Widget (`NOTIFICATIONS`)**: Glanceable view of recent Android notifications in StandBy mode using Android's `NotificationListenerService`.
+2. **System Dashboard Widget (`SYSTEM_DASHBOARD`)**: Real-time hardware and connectivity telemetry (RAM, Storage, Network, and Battery).
+
+### 14.1 High-Level Flow Diagrams
+
+#### Notification Subsystem Flow
+```text
+Android Notification Posted / Removed
+                 │
+                 ▼
+    SkirkNotificationListenerService
+                 │
+                 ▼
+      NotificationRepository
+                 │
+                 ▼
+       NotificationState (In-Memory)
+                 │
+                 ▼
+       Notification Widget Renderer
+       ┌─────────┼─────────┐
+       ▼         ▼         ▼
+     List     Compact    Focus
+```
+
+#### System Dashboard Subsystem Flow
+```text
+Android System APIs / Services
+  │           │           │           │
+  ▼           ▼           ▼           ▼
+RAM        Storage     Network     Battery
+(Activity   (StatFs     (Network    (BatteryInfo
+ Manager)    /data)     Callback)    Provider)
+  │           │           │           │
+  └───────────┼───────────┼───────────┘
+              ▼
+  SystemDashboardRepository
+              │
+              ▼
+     SystemDashboardData
+              │
+              ▼
+   System Dashboard Renderer
+       ┌──────┼──────┐
+       ▼      ▼      ▼
+     Grid   Rings  Minimal
+```
+
+### 14.2 Notification Subsystem Architecture
+
+#### Notification Listener Service & Access Requirements
+- **System Service Declaration**: `SkirkNotificationListenerService` extends Android's `NotificationListenerService` and is protected by `android.permission.BIND_NOTIFICATION_LISTENER_SERVICE`.
+- **Special App Access**: Access to system notifications requires explicit user authorization under Android Special App Access (`Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS` / `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`).
+- **Access State Detection**: `NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)` verifies authorization at runtime.
+- **Empty & Fallback States**:
+  - `PERMISSION_REQUIRED`: Renders a clean StandBy setup card with a "Grant Access" button directly navigating the user to notification listener settings.
+  - `NO_NOTIFICATIONS`: Renders a minimal glanceable card ("All caught up") when authorized but no active notifications are present.
+
+#### Notification Domain Model & Decoupling
+- **No Leaked Framework Types**: Raw `StatusBarNotification` and `Notification` objects are strictly retained within `AndroidNotificationRepository` and mapped to a clean domain model `NotificationItem`:
+  - `key: String`, `id: Int`, `packageName: String`, `appName: String`, `title: String`, `text: String`, `subText: String?`, `postTime: Long`, `isOngoing: Boolean`, `groupKey: String?`, `openNotification: (() -> Unit)?`.
+- **Ordering by Recency**: Notifications are strictly ordered descending by post time (`postTime DESC`). Newest notifications appear first regardless of callback dispatch timing.
+- **Configurable Limits & Ongoing Filter**: Users can configure display count (`maxNotifications`, default 5, clamped to 1..20) and whether ongoing notifications (`FLAG_ONGOING_EVENT`) are shown (`includeOngoing: Boolean`).
+
+#### Notification Interaction & Tap-to-Activate
+- Notifications support interactive tap-to-open via `Notification.contentIntent.send()`.
+- Taps are isolated so they do not inadvertently trigger horizontal panel swiping or vertical slot widget cycling.
+- Skirk never dismisses notifications automatically upon glance display; dismissal remains an explicit user action outside of passive StandBy.
+
+#### Notification Security & Privacy Guarantees
+- **Strict In-Memory State**: Notification titles, text, and metadata are maintained solely in RAM within `AndroidNotificationRepository` and are **never** persisted to the Dashboard SQLite/JSON database or disk.
+- **Zero Logcat Exposure**: Notification titles, text, or sender identifiers are never printed to Logcat during normal operation.
+- **Zero Network Transmission**: Notification data is strictly local and never uploaded to remote servers, analytics, or sync services.
+- **Clean Service Lifecycle**: On listener disconnection or unbinding, in-memory notification state is cleared immediately.
+
+#### Notification Visual Designs
+1. **`List` (`notification_list`)**: Traditional card list showing app name badge, relative timestamp ("2m ago"), bold sender/title, and message body.
+2. **`Compact` (`compact_rows`)**: Ultra-condensed horizontal rows featuring app badge pills, sender name, and relative time pill optimized for high-density glanceability.
+3. **`Focus` (`focus_single`)**: Hero card spotlighting the newest notification with prominent typography and action hint, plus an unread summary indicator ("+3 more") and preview of the next notification.
+
+---
+
+### 14.3 System Dashboard Subsystem Architecture
+
+#### Data Sources & Metrics
+- **RAM**: Retrieved via `ActivityManager.getMemoryInfo(memInfo)`. Reports total memory, available memory, used memory, and used percentage (`usedBytes / totalBytes`). Misleading free RAM calculations are avoided.
+- **Storage**: Retrieved via `StatFs(Environment.getDataDirectory().path)` representing primary internal user storage (`/data`). Reports total bytes, available bytes, used bytes, and used percentage.
+- **Network**: Retrieved via `ConnectivityManager` with `NetworkCapabilities` and reactive `NetworkCallback`. Distinguishes Wi-Fi, Cellular, Ethernet, and Disconnected/Offline states without inspecting traffic or collecting browsing data.
+- **Battery**: Reuses Phase 4's `BatteryInfoProvider` without code duplication, ensuring unified battery state, temperature, and charging source tracking across widgets.
+- **CPU Processor Count**: Exposes hardware available processor cores via `Runtime.getRuntime().availableProcessors()`. Volatile CPU utilization percentage is omitted because modern Android (Android 8+) blocks non-root `/proc/stat` access under SELinux; fabricating or guessing CPU load is explicitly avoided.
+
+#### Update Intervals & StandBy Efficiency
+- **Event-Driven Metrics**:
+  - Battery: Event-driven via system battery change broadcasts (`ACTION_BATTERY_CHANGED`).
+  - Network: Event-driven via `ConnectivityManager.NetworkCallback`.
+- **Periodic Metrics**:
+  - RAM: Polled conservatively at 5-second intervals.
+  - Storage: Polled at low-frequency 30-second intervals.
+- **Zero Unbounded Coroutines**: Metrics streams are combined using Kotlin Flow `combine` and `distinctUntilChanged()`, eliminating redundant Compose recompositions when values remain unchanged during multi-hour StandBy sessions.
+
+#### System Dashboard Visual Designs
+1. **`Grid` (`gauges`)**: 2x2 metric quadrant grid (RAM, Storage, Battery, Network) with progress bars, status glyphs, and primary/secondary values.
+2. **`Rings` (`rings`)**: Visual circular progress rings for RAM, Storage, and Battery with central percentage readouts, hardware core summary, and a network status pill badge.
+3. **`Minimal` (`matrix`)**: Clean typographic matrix layout with monospace values, status tags, and divider rows designed for modern minimalist StandBy displays.
+
+#### Configuration Persistence
+- `SystemDashboardConfig` serializes `selectedDesign`, `showRam`, `showStorage`, `showBattery`, and `showNetwork` into `WidgetConfig`, preserving user preferences across device reboots and orientation switches.
