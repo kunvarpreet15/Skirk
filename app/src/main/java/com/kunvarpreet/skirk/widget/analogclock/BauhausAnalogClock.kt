@@ -1,5 +1,7 @@
 package com.kunvarpreet.skirk.widget.analogclock
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -153,6 +155,7 @@ fun BauhausAnalogClock(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(widthDp = 240, heightDp = 240)
 @Composable
 fun BauhausAnalogClockPreview() {
