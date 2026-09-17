@@ -119,10 +119,10 @@ data class MonthCalendarData(
 
             val daysList = (1..ym.lengthOfMonth()).map { dayNum ->
                 val d = ym.atDay(dayNum)
-                val dayEvts = if (d == now) sampleEvents.take(2) else if (d == now.plusDays(1)) sampleEvents.takeLast(1) else emptyList()
+                val dayEvents = if (d == now) sampleEvents.take(2) else if (d == now.plusDays(1)) sampleEvents.takeLast(1) else emptyList()
                 CalendarDayEvents(
                     date = d,
-                    events = dayEvts,
+                    events = dayEvents,
                     isToday = d == now,
                     isCurrentMonth = true
                 )

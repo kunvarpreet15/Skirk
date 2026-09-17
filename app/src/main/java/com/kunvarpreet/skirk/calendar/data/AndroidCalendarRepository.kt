@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -155,38 +154,29 @@ class AndroidCalendarRepository(
                     yearMonth = yearMonth,
                     days = dayEventsList,
                     selectedDate = selectedDate,
-                    selectedDayEvents = selectedDayEvents
-                )
-            )
-        }
+                    selectedDayEvents = selectedDayEvents)) }
 
         load()
 
         val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
-                load()
-            }
-        }
+                load() } }
 
         val broadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: Intent?) {
-                load()
-            }
-        }
+                load() } }
 
         try {
             context.contentResolver.registerContentObserver(
                 CalendarContract.Events.CONTENT_URI,
                 true,
-                contentObserver
-            )
+                contentObserver)
         } catch (e: Exception) {}
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_DATE_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
-            addAction(Intent.ACTION_TIME_CHANGED)
-        }
+            addAction(Intent.ACTION_TIME_CHANGED) }
         context.registerReceiver(broadcastReceiver, filter)
 
         awaitClose {

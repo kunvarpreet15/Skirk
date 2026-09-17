@@ -97,10 +97,10 @@ object CalendarDateUtils {
         today: LocalDate = LocalDate.now(),
         locale: Locale = Locale.getDefault()
     ): String {
-        return when {
-            date == today -> "Today"
-            date == today.plusDays(1) -> "Tomorrow"
-            date == today.minusDays(1) -> "Yesterday"
+        return when (date) {
+            today -> "Today"
+            today.plusDays(1) -> "Tomorrow"
+            today.minusDays(1) -> "Yesterday"
             else -> {
                 val formatter = DateTimeFormatter.ofPattern("EEEE, MMM d", locale)
                 date.format(formatter)
