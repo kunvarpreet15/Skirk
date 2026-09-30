@@ -20,13 +20,12 @@ android {
 
     buildTypes { release { optimization { enable = true } } }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures { compose = true }
 }
-
 dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
